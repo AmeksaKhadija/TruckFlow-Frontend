@@ -34,7 +34,6 @@ const Register = () => {
         
         <select {...register('role', { required: true })} style={inputStyle}>
           <option value="chauffeur">Chauffeur</option>
-          <option value="admin">Admin</option>
         </select>
 
         <button type="submit" disabled={loading} style={buttonStyle}>
