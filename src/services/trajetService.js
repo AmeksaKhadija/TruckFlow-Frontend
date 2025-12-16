@@ -22,3 +22,14 @@ export const deleteTrajet = async (id) => {
     const response = await api.delete(`/trajets/${id}`);
     return response.data;
 };
+
+export const getTrajetsByChauffeur = async (id) => {
+    const response = await api.get(`/trajets/chauffeur/${id}`);
+    return response.data;
+};
+
+// ✅ Mettre à jour le statut (Démarrer / Terminer)
+export const updateTrajetStatut = async (id, data) => {
+    const response = await api.patch(`/trajets/${id}/statut`, data);
+    return response.data;
+};

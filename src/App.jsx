@@ -24,11 +24,16 @@ import Pneus from "./pages/admin/Pneus";
 import Maintenance from "./pages/admin/Maintenance";
 import Chauffeurs from "./pages/admin/Chauffeurs";
 
+// Layout Chauffeur
+import ChauffeurLayout from "./components/layouts/ChauffeurLayout";
+import MesTrajets from "./pages/chauffeur/MesTrajets";
+
 // Protection des routes
 const PrivateRoute = ({ children, role }) => {
   const { user, loading } = useContext(AuthContext);
   if (loading) return <div>Chargement...</div>;
   if (!user) return <Navigate to="/login" />;
+  // Si un rôle est requis et que l'utilisateur ne l'a pas, redirection
   if (role && user.role !== role) return <Navigate to="/" />;
   return children;
 };
@@ -53,7 +58,6 @@ function App() {
               </PrivateRoute>
             }
           >
-            {/* Routes enfants (s'affichent dans <Outlet /> du Layout) */}
             <Route index element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="dashboard" element={<DashboardHome />} />
             <Route path="camions" element={<Camions />} />
@@ -64,16 +68,22 @@ function App() {
             <Route path="chauffeurs" element={<Chauffeurs />} />
           </Route>
 
-          {/* Route Chauffeur (Simple pour l'instant) */}
+          {/* 🛡️ ROUTES CHAUFFEUR (Corrigées) */}
           <Route
-            path="/chauffeur/dashboard"
+            path="/chauffeur"
             element={
               <PrivateRoute role="chauffeur">
-                <h1>Espace Chauffeur</h1>
+                <ChauffeurLayout />
               </PrivateRoute>
             }
-          />
-
+          >
+            {/* ✅ Redirection automatique : /chauffeur -> /chauffeur/trajets */}
+            <Route
+              index
+              element={<Navigate to="/chauffeur/trajets" replace />}
+            />
+            <Route path="trajets" element={<MesTrajets />} />
+          </Route>
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>

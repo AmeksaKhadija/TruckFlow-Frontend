@@ -22,7 +22,7 @@ const Login = () => {
       if (response.user.role === 'admin') {
         navigate('/admin/dashboard');
       } else {
-        navigate('/chauffeur/dashboard');
+        navigate('/chauffeur/trajets');
       }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Erreur de connexion');
