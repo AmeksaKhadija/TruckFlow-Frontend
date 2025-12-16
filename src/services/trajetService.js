@@ -23,8 +23,8 @@ export const deleteTrajet = async (id) => {
     return response.data;
 };
 
-export const getTrajetsByChauffeur = async (chauffeurId) => {
-    const response = await api.get(`/trajets/chauffeur/${chauffeurId}`);
+export const getTrajetsByChauffeur = async (id) => {
+    const response = await api.get(`/trajets/chauffeur/${id}`);
     return response.data;
 };
 

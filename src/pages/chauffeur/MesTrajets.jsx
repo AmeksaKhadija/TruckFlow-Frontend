@@ -23,12 +23,26 @@ const MesTrajets = () => {
   // Récupérer l'ID du user connecté
   const user = JSON.parse(localStorage.getItem("user"));
 
-  const fetchTrajets = async () => {
-    try {
-      const res = await getTrajetsByChauffeur(user._id);
-      // On filtre pour ne pas afficher les trajets terminés depuis longtemps si besoin
-      setTrajets(res.data);
+  const userId = user?._id || user?.id;
+
+const fetchTrajets = async () => {
+  try {
+    if (!userId) return; // Sécurité
+    const res = await getTrajetsByChauffeur(userId);
+
+      // 👇 AJOUTEZ CE LOG POUR VOIR CE QUE LE FRONT REÇOIT
+      console.log("📦 Réponse API Front:", res);
+
+      // Si votre service renvoie 'response.data', alors 'res' est l'objet { success, count, data }
+      // Il faut donc accéder à res.data pour avoir le tableau
+      if (res.success && Array.isArray(res.data)) {
+        setTrajets(res.data);
+      } else {
+        // Cas où le service renvoie directement le tableau (dépend de votre service)
+        setTrajets(Array.isArray(res) ? res : []);
+      }
     } catch (error) {
+      console.error(error);
       toast.error("Impossible de charger vos trajets");
     } finally {
       setLoading(false);
@@ -36,22 +50,24 @@ const MesTrajets = () => {
   };
 
   useEffect(() => {
-    if (user?._id) fetchTrajets();
+    fetchTrajets();
   }, []);
 
   // Action : Démarrer le trajet
   const handleStart = async (trajet) => {
     if (window.confirm("Démarrer ce trajet maintenant ?")) {
       try {
-        // On envoie kmDepart (optionnel si le backend le gère, mais mieux vaut l'envoyer)
-        // Ici on suppose que le camion est au km actuel, on pourrait demander à l'utilisateur
+        // Vérification de sécurité pour le kilométrage
+        const kmDepart = trajet.camionId?.kilometrage || trajet.kmDepart;
+
         await updateTrajetStatut(trajet._id, {
           statut: "en_cours",
-          kmDepart: trajet.camionId.kilometrage, // On prend le km actuel du camion
+          kmDepart: kmDepart,
         });
         toast.success("Bonne route ! Trajet démarré.");
         fetchTrajets();
       } catch (error) {
+        console.error(error);
         toast.error("Erreur au démarrage");
       }
     }
@@ -81,73 +97,92 @@ const MesTrajets = () => {
     }
   };
 
-  if (loading) return <p>Chargement...</p>;
+  if (loading)
+    return (
+      <div style={{ padding: "20px", textAlign: "center" }}>
+        Chargement des trajets...
+      </div>
+    );
 
   return (
     <div>
       <h1 style={{ color: "#2c3e50", marginBottom: "20px" }}>
-        Bonjour, {user?.prenom} 👋
+        Bonjour, {user?.prenom || "Chauffeur"} 👋
       </h1>
 
-      {/* Liste des trajets */}
-      <div style={styles.grid}>
-        {trajets.map((t) => (
-          <div key={t._id} style={styles.card}>
-            <div style={styles.header}>
-              <span style={getBadgeStyle(t.statut)}>
-                {t.statut.replace("_", " ").toUpperCase()}
-              </span>
-              <span style={{ fontSize: "0.9rem", color: "#7f8c8d" }}>
-                {new Date(t.dateDepart).toLocaleDateString()}
-              </span>
-            </div>
+      {/* Affichage si aucun trajet */}
+      {!trajets || trajets.length === 0 ? (
+        <div style={styles.emptyState}>
+          <h3>Aucun trajet assigné</h3>
+          <p>Vous n'avez pas de course prévue pour le moment.</p>
+        </div>
+      ) : (
+        /* Liste des trajets */
+        <div style={styles.grid}>
+          {trajets.map((t) => (
+            <div key={t._id} style={styles.card}>
+              <div style={styles.header}>
+                <span style={getBadgeStyle(t.statut)}>
+                  {t.statut.replace("_", " ").toUpperCase()}
+                </span>
+                <span style={{ fontSize: "0.9rem", color: "#7f8c8d" }}>
+                  {new Date(t.dateDepart).toLocaleDateString()}
+                </span>
+              </div>
 
-            <div style={styles.route}>
-              <FaMapMarkerAlt color="#e74c3c" />
-              <strong>{t.pointDepart}</strong> ➝{" "}
-              <strong>{t.pointArrivee}</strong>
-            </div>
+              <div style={styles.route}>
+                <FaMapMarkerAlt color="#e74c3c" />
+                <div>
+                  <strong>{t.pointDepart}</strong> <br />
+                  <span style={{ fontSize: "0.8em" }}>vers</span> <br />
+                  <strong>{t.pointArrivee}</strong>
+                </div>
+              </div>
 
-            <div style={styles.info}>
-              <p>
-                <FaTruck /> {t.camionId?.matricule} ({t.camionId?.marque})
-              </p>
-              {t.remorqueId && <p>🔗 Remorque: {t.remorqueId.matricule}</p>}
-            </div>
-
-            {/* Actions */}
-            <div style={styles.actions}>
-              {t.statut === "a_faire" && (
-                <button
-                  onClick={() => handleStart(t)}
-                  style={styles.startButton}
-                >
-                  <FaPlay /> Démarrer
-                </button>
-              )}
-
-              {t.statut === "en_cours" && (
-                <button
-                  onClick={() => openFinishForm(t)}
-                  style={styles.finishButton}
-                >
-                  <FaCheckCircle /> Terminer
-                </button>
-              )}
-
-              {t.statut === "termine" && (
-                <p
-                  style={{ color: "green", textAlign: "center", width: "100%" }}
-                >
-                  Trajet clôturé ✅
+              <div style={styles.info}>
+                <p>
+                  <FaTruck /> {t.camionId?.matricule} ({t.camionId?.marque})
                 </p>
-              )}
-            </div>
-          </div>
-        ))}
+                {t.remorqueId && <p>🔗 Remorque: {t.remorqueId.matricule}</p>}
+              </div>
 
-        {trajets.length === 0 && <p>Aucun trajet assigné pour le moment.</p>}
-      </div>
+              {/* Actions */}
+              <div style={styles.actions}>
+                {t.statut === "a_faire" && (
+                  <button
+                    onClick={() => handleStart(t)}
+                    style={styles.startButton}
+                  >
+                    <FaPlay /> Démarrer
+                  </button>
+                )}
+
+                {t.statut === "en_cours" && (
+                  <button
+                    onClick={() => openFinishForm(t)}
+                    style={styles.finishButton}
+                  >
+                    <FaCheckCircle /> Terminer
+                  </button>
+                )}
+
+                {t.statut === "termine" && (
+                  <p
+                    style={{
+                      color: "green",
+                      textAlign: "center",
+                      width: "100%",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    Trajet clôturé ✅
+                  </p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Modal / Formulaire de fin de trajet */}
       {finishingTrajet && (
@@ -164,7 +199,7 @@ const MesTrajets = () => {
                 type="number"
                 required
                 min={finishingTrajet.kmDepart}
-                placeholder="Ex: 150200"
+                placeholder={`Min: ${finishingTrajet.kmDepart}`}
                 value={formData.kmArrivee}
                 onChange={(e) =>
                   setFormData({ ...formData, kmArrivee: e.target.value })
@@ -225,11 +260,21 @@ const styles = {
     gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
     gap: "20px",
   },
+  emptyState: {
+    textAlign: "center",
+    padding: "50px",
+    backgroundColor: "white",
+    borderRadius: "10px",
+    color: "#7f8c8d",
+    boxShadow: "0 2px 5px rgba(0,0,0,0.05)",
+  },
   card: {
     backgroundColor: "white",
     padding: "20px",
     borderRadius: "10px",
     boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
+    display: "flex",
+    flexDirection: "column",
   },
   header: {
     display: "flex",
@@ -238,17 +283,20 @@ const styles = {
     marginBottom: "15px",
   },
   route: {
-    fontSize: "1.2rem",
+    fontSize: "1.1rem",
     marginBottom: "15px",
     display: "flex",
     alignItems: "center",
-    gap: "10px",
+    gap: "15px",
+    backgroundColor: "#f8f9fa",
+    padding: "10px",
+    borderRadius: "8px",
   },
-  info: { color: "#555", marginBottom: "20px", lineHeight: "1.6" },
-  actions: { display: "flex", gap: "10px" },
+  info: { color: "#555", marginBottom: "20px", lineHeight: "1.6", flex: 1 },
+  actions: { display: "flex", gap: "10px", marginTop: "auto" },
   startButton: {
     flex: 1,
-    padding: "10px",
+    padding: "12px",
     backgroundColor: "#3498db",
     color: "white",
     border: "none",
@@ -257,11 +305,12 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    gap: "5px",
+    gap: "8px",
+    fontSize: "1rem",
   },
   finishButton: {
     flex: 1,
-    padding: "10px",
+    padding: "12px",
     backgroundColor: "#27ae60",
     color: "white",
     border: "none",
@@ -270,7 +319,8 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    gap: "5px",
+    gap: "8px",
+    fontSize: "1rem",
   },
 
   // Modal Styles
@@ -299,7 +349,12 @@ const styles = {
     gap: "15px",
     marginTop: "20px",
   },
-  input: { padding: "10px", borderRadius: "5px", border: "1px solid #ddd" },
+  input: {
+    padding: "12px",
+    borderRadius: "5px",
+    border: "1px solid #ddd",
+    fontSize: "1rem",
+  },
   modalActions: { display: "flex", gap: "10px", marginTop: "10px" },
   cancelButton: {
     flex: 1,
